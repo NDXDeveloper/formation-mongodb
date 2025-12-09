@@ -1,4 +1,4 @@
-# 🍃 Formation Complète MongoDB
+# 🍃 Formation MongoDB
 
 ![License](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-blue.svg)
 ![MongoDB](https://img.shields.io/badge/MongoDB-6.x%20%2F%207.x%20%2F%208.x-green.svg)
@@ -177,11 +177,11 @@ formation-mongodb/
 
 **Creative Commons BY-NC-SA 4.0**
 
-✅ Utiliser et partager librement
-✅ Modifier et adapter
-✅ Attribution requise
-❌ Pas d'usage commercial
-🔄 Partage dans les mêmes conditions
+- ✅ Utiliser et partager librement
+- ✅ Modifier et adapter
+- ✅ Attribution requise
+- ❌ Pas d'usage commercial
+- 🔄 Partage dans les mêmes conditions
 
 Voir [LICENSE](/LICENSE) pour les détails.
 
