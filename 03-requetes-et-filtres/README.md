@@ -1,475 +1,826 @@
 🔝 Retour au [Sommaire](/SOMMAIRE.md)
 
-# Chapitre 3 : Requêtes et Filtres
+# Requêtes et Filtres
 
-## Vue d'Ensemble
+## Bienvenue dans l'art de l'interrogation de données ! 🔍
 
-Bienvenue dans le chapitre 3 de la formation MongoDB ! Ce chapitre est **fondamental** car il vous apprendra à **interroger** et **filtrer** vos données de manière efficace. Que vous construisiez une application web, une API, ou un système d'analyse de données, la maîtrise des requêtes MongoDB est essentielle.
+Vous savez maintenant **créer, lire, mettre à jour et supprimer** des documents dans MongoDB. C'est excellent ! Mais dans le monde réel, vous aurez besoin de bien plus que de simples requêtes basiques. Comment rechercher tous les clients d'une ville spécifique ? Comment trouver les produits dont le prix est compris entre 10 et 50 euros ? Comment filtrer les articles publiés le mois dernier ?
 
-Les requêtes sont le cœur de toute interaction avec une base de données. Dans MongoDB, elles sont exprimées de manière naturelle en utilisant des documents JSON, ce qui les rend intuitives pour les développeurs, en particulier ceux travaillant avec JavaScript.
+Ce chapitre va transformer vos compétences de recherche de base en une maîtrise approfondie des requêtes MongoDB. Vous allez découvrir la richesse et la puissance du langage de requête MongoDB.
 
-### Pourquoi ce Chapitre est Important ?
+## Où en sommes-nous dans votre parcours ?
 
-- **Bases essentielles** : Sans savoir interroger vos données, vous ne pouvez pas les exploiter
-- **Performance** : Apprendre à écrire des requêtes optimisées dès le départ
-- **Flexibilité** : MongoDB offre des opérateurs puissants pour tous types de recherches
-- **Productivité** : Des requêtes bien construites simplifient le développement
-- **Fondation** : Compétences nécessaires pour tous les chapitres suivants
+Vous avez complété les chapitres 1 et 2 et vous maîtrisez maintenant :
+- ✅ Les concepts fondamentaux de MongoDB (chapitre 1)
+- ✅ La structure des documents BSON et les types de données
+- ✅ Les opérations CRUD de base : `insertOne()`, `find()`, `updateOne()`, `deleteOne()`
+- ✅ L'utilisation de mongosh et MongoDB Compass
 
----
+**Parfait !** Vous êtes maintenant prêt à approfondir vos capacités de recherche et à écrire des requêtes sophistiquées.
 
-## Objectifs d'Apprentissage
+## Objectifs pédagogiques
 
-À la fin de ce chapitre, vous serez capable de :
+À l'issue de ce chapitre, vous serez capable de :
 
-- ✅ Écrire des requêtes simples et complexes avec MongoDB
-- ✅ Utiliser tous les opérateurs de comparaison et logiques
-- ✅ Filtrer des données selon n'importe quel critère
-- ✅ Interroger des documents avec structures complexes (imbriquées et tableaux)
-- ✅ Optimiser vos requêtes pour de meilleures performances
-- ✅ Projeter, trier, limiter et paginer vos résultats
-- ✅ Compter et analyser vos données efficacement
+- ✅ **Construire** des requêtes complexes avec de multiples critères
+- ✅ **Utiliser** tous les opérateurs de comparaison ($gt, $lt, $in, etc.)
+- ✅ **Combiner** des conditions avec les opérateurs logiques ($and, $or, $not)
+- ✅ **Interroger** des tableaux et des documents imbriqués
+- ✅ **Maîtriser** les projections pour sélectionner uniquement les champs nécessaires
+- ✅ **Optimiser** vos requêtes avec tri, limite et pagination
+- ✅ **Rechercher** avec des expressions régulières et des conditions complexes
+- ✅ **Compter** efficacement les documents selon différents critères
 
----
+## Du simple au complexe : l'évolution de vos requêtes
 
-## Prérequis
+### Vos requêtes actuelles (Chapitre 2)
 
-Avant de commencer ce chapitre, assurez-vous d'avoir :
+```javascript
+// Recherche simple par égalité
+db.produits.find({ nom: "Ordinateur portable" })
 
-- ✅ Complété le **Chapitre 1** (Introduction à MongoDB)
-- ✅ Complété le **Chapitre 2** (Fondamentaux de MongoDB)
-- ✅ Une installation fonctionnelle de MongoDB
-- ✅ Des notions de base en programmation (idéalement JavaScript)
-- ✅ Une compréhension des structures de données JSON
+// Recherche d'un seul document
+db.utilisateurs.findOne({ email: "alice@example.com" })
 
----
-
-## Structure du Chapitre
-
-Ce chapitre est divisé en **11 sections** progressives qui vous guideront du niveau débutant vers une maîtrise complète des requêtes MongoDB.
-
-### 🎯 Sections Fondamentales (Débutant)
-
-Ces sections couvrent les bases essentielles que tout utilisateur MongoDB doit connaître.
-
-**[3.1 Syntaxe des Requêtes de Base](./01-syntaxe-requetes-base.md)**
-Découvrez la structure des requêtes MongoDB, les méthodes `find()` et `findOne()`, et comment effectuer des recherches simples.
-
-**[3.2 Opérateurs de Comparaison](./02-operateurs-comparaison.md)**
-Maîtrisez les opérateurs essentiels : `$eq`, `$ne`, `$gt`, `$gte`, `$lt`, `$lte`, `$in`, `$nin` pour comparer des valeurs.
-
-**[3.3 Opérateurs Logiques](./03-operateurs-logiques.md)**
-Apprenez à combiner des conditions avec `$and`, `$or`, `$not`, et `$nor` pour créer des requêtes sophistiquées.
-
-### 🔍 Sections Intermédiaires
-
-Ces sections approfondissent les capacités de requêtage avec des opérateurs spécialisés.
-
-**[3.4 Opérateurs d'Éléments](./04-operateurs-elements.md)**
-Utilisez `$exists` et `$type` pour vérifier la présence et le type des champs dans vos documents.
-
-**[3.5 Opérateurs d'Évaluation](./05-operateurs-evaluation.md)**
-Explorez les opérateurs avancés : `$regex` pour les motifs, `$expr` pour comparer des champs, `$text` pour la recherche full-text, et `$mod` pour les opérations mathématiques.
-
-**[3.6 Opérateurs de Tableaux](./06-operateurs-tableaux.md)**
-Interrogez efficacement les tableaux avec `$all`, `$elemMatch`, et `$size` pour gérer les structures de données complexes.
-
-### 📊 Sections de Contrôle des Résultats
-
-Ces sections vous apprennent à contrôler précisément ce qui est retourné et comment.
-
-**[3.7 Projections : Sélection des Champs](./07-projections.md)**
-Optimisez vos requêtes en ne récupérant que les champs nécessaires, réduisant ainsi la bande passante et améliorant les performances.
-
-**[3.8 Tri, Limite et Pagination](./08-tri-limite-pagination.md)**
-Organisez vos résultats avec `sort()`, limitez-les avec `limit()`, et implémentez la pagination avec `skip()`.
-
-**[3.9 Comptage de Documents](./09-comptage-documents.md)**
-Comptez vos documents efficacement avec `countDocuments()` et `estimatedDocumentCount()` pour les statistiques et la pagination.
-
-### 🏗️ Sections Avancées sur les Structures Complexes
-
-Ces sections finales couvrent les requêtes sur des structures de données complexes.
-
-**[3.10 Requêtes sur Documents Imbriqués](./10-requetes-documents-imbriques.md)**
-Maîtrisez la notation pointée et `$elemMatch` pour interroger des objets imbriqués et des sous-documents.
-
-**[3.11 Requêtes sur Tableaux](./11-requetes-tableaux.md)**
-Approfondissez les requêtes sur tableaux, incluant les mises à jour avec `$`, `$[]`, et `$[<identifier>]`, ainsi que les opérations `$push`, `$pull`, et `$addToSet`.
-
----
-
-## Progression Recommandée
-
-### 📚 Pour les Débutants Complets
-
-Suivez l'ordre des sections **de 3.1 à 3.11**. Chaque section s'appuie sur les précédentes.
-
-**Plan suggéré** :
-1. **Jour 1-2** : Sections 3.1 à 3.3 (bases et opérateurs essentiels)
-2. **Jour 3-4** : Sections 3.4 à 3.6 (opérateurs spécialisés)
-3. **Jour 5-6** : Sections 3.7 à 3.9 (contrôle des résultats)
-4. **Jour 7-8** : Sections 3.10 à 3.11 (structures complexes)
-
-### 🎓 Pour ceux ayant de l'Expérience SQL
-
-Si vous connaissez SQL, vous trouverez des **comparaisons SQL/MongoDB** dans chaque section.
-
-**Focus recommandé** :
-- Section 3.1 : Comprendre la syntaxe MongoDB
-- Section 3.3 : Opérateurs logiques (similaires mais avec syntaxe JSON)
-- Section 3.7 : Projections (équivalent de SELECT)
-- Section 3.10-3.11 : Structures complexes (différent de SQL)
-
-### 🚀 Pour Réviser ou Approfondir
-
-Utilisez ce chapitre comme **référence**. Chaque section est autonome avec de nombreux exemples.
-
-**Navigation rapide** :
-- Consultez la table des matières de chaque section
-- Utilisez les exemples pratiques pour des cas concrets
-- Référez-vous aux bonnes pratiques et pièges à éviter
-
----
-
-## Méthodologie d'Apprentissage
-
-### 1️⃣ Théorie
-
-Chaque section commence par des explications claires des concepts avec la syntaxe détaillée.
-
-### 2️⃣ Exemples Pratiques
-
-De nombreux exemples de code commentés illustrent chaque concept dans des contextes réels :
-- E-commerce (produits, commandes, paniers)
-- Gestion d'utilisateurs
-- Blogs et réseaux sociaux
-- Applications métier
-
-### 3️⃣ Comparaisons SQL
-
-Des tableaux de correspondance SQL/MongoDB facilitent la transition pour ceux venant du monde relationnel.
-
-### 4️⃣ Bonnes Pratiques
-
-Chaque section inclut des recommandations pour écrire des requêtes performantes et maintenables.
-
-### 5️⃣ Pièges Courants
-
-Les erreurs fréquentes sont identifiées avec des solutions pour les éviter.
-
-### 6️⃣ Performance
-
-Conseils d'optimisation et utilisation de `explain()` pour analyser vos requêtes.
-
----
-
-## Outils et Environnement
-
-Pour suivre ce chapitre, vous pouvez utiliser :
-
-### MongoDB Shell (mongosh)
-
-```bash
-mongosh
-use tutorial
-db.users.find({ age: { $gte: 18 } })
+// Recherche de tous les documents
+db.articles.find()
 ```
 
-**Avantages** : Direct, rapide, parfait pour tester des requêtes.
+**Ces requêtes sont un bon début**, mais elles sont limitées. Dans la vraie vie, vous aurez besoin de bien plus !
 
-### MongoDB Compass
+### Vos futures requêtes (Après ce chapitre)
 
-Interface graphique pour visualiser vos données et construire des requêtes visuellement.
-
-**Avantages** : Visuel, intuitif, génère automatiquement le code.
-
-### Applications avec Drivers
-
-Intégrez vos requêtes dans votre code applicatif (Node.js, Python, Java, etc.).
-
-**Exemple Node.js** :
 ```javascript
-const users = await db.collection('users')
-    .find({ age: { $gte: 18 } })
-    .toArray();
+// Recherche de produits dans une fourchette de prix
+db.produits.find({
+    prix: { $gte: 100, $lte: 500 },
+    categorie: { $in: ["Électronique", "Informatique"] },
+    stock: { $gt: 0 }
+})
+
+// Recherche d'utilisateurs actifs avec conditions multiples
+db.utilisateurs.find({
+    $and: [
+        { dateInscription: { $gte: new Date("2024-01-01") } },
+        { $or: [
+            { statut: "premium" },
+            { achats: { $gte: 10 } }
+        ]}
+    ]
+})
+
+// Recherche avec projection (sélection de champs)
+db.articles.find(
+    { vues: { $gt: 1000 } },
+    { titre: 1, auteur: 1, datePublication: 1, _id: 0 }
+)
+
+// Recherche avec tri et pagination
+db.produits.find({ categorie: "Livres" })
+    .sort({ prix: -1 })  // Tri décroissant par prix
+    .skip(20)            // Sauter les 20 premiers
+    .limit(10)           // Limiter à 10 résultats
 ```
 
----
+**Impressionnant, n'est-ce pas ?** C'est exactement ce que vous saurez faire à la fin de ce chapitre !
 
-## Collections d'Exemple
+## Vue d'ensemble du chapitre
 
-Pour vous exercer, nous utilisons plusieurs collections d'exemple tout au long du chapitre :
+Ce chapitre est organisé en 11 sections progressives qui couvrent tous les aspects des requêtes et filtres :
 
-### Collection `users`
+### 🎯 Partie 1 : Fondamentaux des requêtes (Section 3.1)
+La **syntaxe de base** et les conventions d'écriture des requêtes MongoDB.
+
+### 🎯 Partie 2 : Opérateurs de recherche (Sections 3.2 à 3.6)
+Les différents types d'opérateurs pour construire vos filtres :
+- **3.2** : Opérateurs de comparaison ($eq, $gt, $lt, $in, etc.)
+- **3.3** : Opérateurs logiques ($and, $or, $not, $nor)
+- **3.4** : Opérateurs d'éléments ($exists, $type)
+- **3.5** : Opérateurs d'évaluation ($regex, $expr, $text, etc.)
+- **3.6** : Opérateurs de tableaux ($all, $elemMatch, $size)
+
+### 🎯 Partie 3 : Optimisation et présentation (Sections 3.7 à 3.9)
+Comment façonner et optimiser vos résultats :
+- **3.7** : Projections (sélection des champs)
+- **3.8** : Tri, limite et pagination
+- **3.9** : Comptage de documents
+
+### 🎯 Partie 4 : Cas spéciaux (Sections 3.10 et 3.11)
+Requêtes sur structures complexes :
+- **3.10** : Requêtes sur documents imbriqués
+- **3.11** : Requêtes sur tableaux
+
+## Comprendre la philosophie des requêtes MongoDB
+
+### Principe 1 : Les documents de requête
+
+Dans MongoDB, les requêtes sont elles-mêmes des **documents** (objets JSON) :
+
 ```javascript
+// Ceci est un document de requête
 {
-    _id: ObjectId("..."),
-    name: "Alice Dupont",
-    email: "alice@example.com",
-    age: 30,
-    status: "active",
-    address: {
-        city: "Paris",
-        country: "France"
-    },
-    hobbies: ["reading", "coding"]
+    age: { $gte: 18 },      // Condition 1
+    ville: "Paris",          // Condition 2
+    actif: true             // Condition 3
+}
+
+// Équivalent SQL conceptuel :
+// WHERE age >= 18 AND ville = 'Paris' AND actif = true
+```
+
+**Avantage :** Cette approche est naturelle, lisible et suit la même structure que vos documents de données.
+
+### Principe 2 : Les opérateurs préfixés par $
+
+MongoDB utilise le symbole `$` pour tous ses opérateurs spéciaux :
+
+```javascript
+// $ indique un opérateur MongoDB
+{
+    prix: { $gt: 100 }        // $gt = "greater than" (plus grand que)
+}
+
+// Sans $, c'est une égalité stricte
+{
+    prix: 100                 // Cherche prix exactement égal à 100
 }
 ```
 
-### Collection `products`
-```javascript
-{
-    _id: ObjectId("..."),
-    name: "Laptop Pro",
-    category: "Electronics",
-    price: 999.99,
-    stock: 15,
-    tags: ["portable", "pro", "high-performance"]
-}
-```
+**Important :** Le `$` distingue les opérateurs MongoDB des noms de champs ordinaires.
 
-### Collection `orders`
-```javascript
-{
-    _id: ObjectId("..."),
-    orderNumber: "ORD-12345",
-    customerId: ObjectId("..."),
-    amount: 150.00,
-    status: "completed",
-    orderDate: ISODate("2024-01-15")
-}
-```
+### Principe 3 : Composition et imbrication
 
-### Collection `articles`
+Les conditions peuvent être imbriquées et combinées :
+
 ```javascript
+// Conditions imbriquées
 {
-    _id: ObjectId("..."),
-    title: "Introduction to MongoDB",
-    author: "Alice",
-    status: "published",
-    publishedDate: ISODate("2024-01-15"),
-    tags: ["mongodb", "database", "tutorial"],
-    comments: [
-        {
-            author: "Bob",
-            text: "Great article!",
-            date: ISODate("2024-01-16")
-        }
+    prix: { $gte: 50, $lte: 100 },    // 50 <= prix <= 100
+    stock: { $gt: 0 }                  // stock > 0
+}
+
+// Combinaison avec $and explicite
+{
+    $and: [
+        { prix: { $gte: 50 } },
+        { prix: { $lte: 100 } }
     ]
 }
 ```
 
----
+## Exemple progressif : une collection e-commerce
 
-## Concepts Clés du Chapitre
-
-Avant de commencer, familiarisez-vous avec ces concepts qui seront utilisés tout au long du chapitre :
-
-### 🔑 Document de Requête
-Un objet JSON définissant les critères de recherche :
-```javascript
-{ age: 25, status: "active" }
-```
-
-### 🔑 Opérateurs
-Mots-clés préfixés par `$` pour des conditions avancées :
-```javascript
-{ age: { $gte: 18 } }
-```
-
-### 🔑 Curseur
-Pointeur vers les résultats d'une requête `find()` :
-```javascript
-const cursor = db.users.find({ status: "active" })
-```
-
-### 🔑 Projection
-Sélection des champs à retourner :
-```javascript
-db.users.find({}, { name: 1, email: 1, _id: 0 })
-```
-
-### 🔑 Notation Pointée
-Accès aux champs imbriqués :
-```javascript
-{ "address.city": "Paris" }
-```
-
-### 🔑 Index
-Structure qui améliore les performances des requêtes :
-```javascript
-db.users.createIndex({ email: 1 })
-```
-
----
-
-## Ressources Complémentaires
-
-### Documentation Officielle MongoDB
-- [Query Documents](https://docs.mongodb.com/manual/tutorial/query-documents/)
-- [Query Operators](https://docs.mongodb.com/manual/reference/operator/query/)
-- [Projections](https://docs.mongodb.com/manual/tutorial/project-fields-from-query-results/)
-
-### Outils Pratiques
-- **MongoDB Compass** : Interface graphique pour visualiser et requêter
-- **mongosh** : Shell interactif pour tester vos requêtes
-- **MongoDB Playground** (VS Code) : Extension pour tester du code MongoDB
-
-### Chapitres Connexes
-- **Chapitre 2** : Fondamentaux (CRUD de base)
-- **Chapitre 5** : Index et Optimisation (pour performances)
-- **Chapitre 6** : Framework d'Agrégation (pour requêtes complexes)
-
----
-
-## Conventions Utilisées
-
-### Symboles et Icônes
-
-- ✅ **Bon exemple** ou bonne pratique
-- ❌ **Mauvais exemple** ou pratique à éviter
-- ⚠️ **Attention** ou point important
-- 💡 **Astuce** ou conseil pratique
-- 🔍 **Note** ou information complémentaire
-
-### Code et Syntaxe
+Pour illustrer l'évolution de vos compétences, utilisons un exemple concret. Imaginons une collection `produits` pour un site e-commerce :
 
 ```javascript
-// Exemple de code commenté
-db.users.find({ age: { $gte: 18 } })  // Commentaire explicatif
+// Exemple de documents dans la collection produits
+db.produits.insertMany([
+    {
+        _id: 1,
+        nom: "Ordinateur portable Dell XPS",
+        categorie: "Informatique",
+        prix: 1299.99,
+        stock: 15,
+        marque: "Dell",
+        caracteristiques: {
+            processeur: "Intel i7",
+            ram: 16,
+            stockage: 512
+        },
+        tags: ["bureautique", "gaming", "portable"],
+        dateAjout: new Date("2024-01-15"),
+        promotion: false,
+        note: 4.5
+    },
+    {
+        _id: 2,
+        nom: "Clavier mécanique RGB",
+        categorie: "Accessoires",
+        prix: 89.99,
+        stock: 42,
+        marque: "Corsair",
+        caracteristiques: {
+            type: "mécanique",
+            switches: "Cherry MX Red",
+            retro: true
+        },
+        tags: ["gaming", "RGB"],
+        dateAjout: new Date("2024-02-01"),
+        promotion: true,
+        note: 4.8
+    },
+    {
+        _id: 3,
+        nom: "Souris sans fil Logitech",
+        categorie: "Accessoires",
+        prix: 39.99,
+        stock: 0,  // Rupture de stock
+        marque: "Logitech",
+        caracteristiques: {
+            type: "sans fil",
+            dpi: 2400,
+            batterie: "rechargeable"
+        },
+        tags: ["bureautique", "sans-fil"],
+        dateAjout: new Date("2024-01-20"),
+        promotion: false,
+        note: 4.2
+    }
+])
 ```
 
-**Résultat attendu** :
+### Niveau 1 : Requêtes simples (ce que vous savez déjà)
+
 ```javascript
-{ _id: 1, name: "Alice", age: 30 }
-{ _id: 2, name: "Bob", age: 25 }
+// Rechercher un produit par nom exact
+db.produits.find({ nom: "Ordinateur portable Dell XPS" })
+
+// Rechercher tous les produits d'une catégorie
+db.produits.find({ categorie: "Accessoires" })
+
+// Rechercher les produits en promotion
+db.produits.find({ promotion: true })
 ```
 
-### Sections Spéciales
+**Limitation :** Ces requêtes ne fonctionnent que pour des égalités exactes.
 
-> **💡 Conseil** : Information utile pour aller plus loin
+### Niveau 2 : Comparaisons (ce que vous allez apprendre)
 
-> **⚠️ Important** : Point crucial à ne pas manquer
-
-> **🔍 Note** : Détail technique ou contexte additionnel
-
----
-
-## Évaluation de Vos Progrès
-
-### Points de Contrôle
-
-Après chaque groupe de sections, vérifiez que vous êtes capable de :
-
-**Après 3.1-3.3** :
-- [ ] Écrire des requêtes de base avec `find()` et `findOne()`
-- [ ] Utiliser les opérateurs de comparaison (`$gt`, `$lt`, `$in`, etc.)
-- [ ] Combiner des conditions avec `$and`, `$or`, `$not`
-
-**Après 3.4-3.6** :
-- [ ] Vérifier l'existence de champs avec `$exists`
-- [ ] Utiliser les expressions régulières avec `$regex`
-- [ ] Interroger des tableaux avec `$all`, `$elemMatch`, `$size`
-
-**Après 3.7-3.9** :
-- [ ] Projeter des champs spécifiques
-- [ ] Trier, limiter et paginer des résultats
-- [ ] Compter des documents efficacement
-
-**Après 3.10-3.11** :
-- [ ] Utiliser la notation pointée pour les documents imbriqués
-- [ ] Maîtriser `$elemMatch` pour les tableaux d'objets
-- [ ] Effectuer des mises à jour sur des tableaux
-
----
-
-## Astuces pour Réussir
-
-### 1. Pratiquez Régulièrement
-Testez chaque exemple dans votre environnement MongoDB. L'apprentissage par la pratique est essentiel.
-
-### 2. Créez Vos Propres Exemples
-Adaptez les exemples à vos propres cas d'usage pour mieux comprendre.
-
-### 3. Utilisez `explain()`
-Analysez systématiquement vos requêtes pour comprendre leur exécution :
 ```javascript
-db.users.find({ age: { $gte: 18 } }).explain("executionStats")
+// Produits de moins de 100€
+db.produits.find({
+    prix: { $lt: 100 }
+})
+// Retourne : Clavier (89.99€) et Souris (39.99€)
+
+// Produits entre 50€ et 100€
+db.produits.find({
+    prix: { $gte: 50, $lte: 100 }
+})
+// Retourne : Clavier (89.99€)
+
+// Produits avec stock supérieur à 10
+db.produits.find({
+    stock: { $gt: 10 }
+})
+// Retourne : Ordinateur (15) et Clavier (42)
 ```
 
-### 4. Consultez les Bonnes Pratiques
-Chaque section contient des recommandations testées en production.
+**Explication :**
+- `$lt` = "less than" (plus petit que)
+- `$lte` = "less than or equal" (plus petit ou égal)
+- `$gt` = "greater than" (plus grand que)
+- `$gte` = "greater than or equal" (plus grand ou égal)
 
-### 5. Évitez les Pièges Courants
-Les sections "Pièges à Éviter" vous font gagner un temps précieux.
+### Niveau 3 : Conditions multiples (avancé)
 
-### 6. Créez des Index
-Pour toute requête fréquente, pensez aux index dès le début.
+```javascript
+// Produits en stock ET à moins de 100€
+db.produits.find({
+    stock: { $gt: 0 },
+    prix: { $lt: 100 }
+})
+// Retourne : Clavier uniquement (stock: 42, prix: 89.99)
 
-### 7. Testez avec des Données Réalistes
-Les petits jeux de test ne révèlent pas toujours les problèmes de performance.
+// Produits de certaines marques
+db.produits.find({
+    marque: { $in: ["Dell", "Logitech"] }
+})
+// Retourne : Ordinateur Dell et Souris Logitech
+
+// Produits en promotion OU avec note >= 4.5
+db.produits.find({
+    $or: [
+        { promotion: true },
+        { note: { $gte: 4.5 } }
+    ]
+})
+// Retourne : Ordinateur (note: 4.5) et Clavier (promotion: true)
+```
+
+**Nouveaux opérateurs :**
+- `$in` : valeur parmi une liste
+- `$or` : condition OU logique
+
+### Niveau 4 : Requêtes complexes (expert)
+
+```javascript
+// Produits gaming disponibles, avec note élevée, à prix raisonnable
+db.produits.find({
+    $and: [
+        { tags: "gaming" },
+        { stock: { $gt: 0 } },
+        { note: { $gte: 4.0 } },
+        { prix: { $lte: 1500 } }
+    ]
+})
+
+// Produits avec caractéristiques spécifiques (document imbriqué)
+db.produits.find({
+    "caracteristiques.ram": { $gte: 16 }
+})
+// Retourne : Ordinateur (RAM: 16)
+
+// Recherche textuelle dans le nom
+db.produits.find({
+    nom: { $regex: /clavier/i }  // i = insensible à la casse
+})
+// Retourne : Clavier mécanique RGB
+```
+
+**Concepts avancés :**
+- `$and` explicite pour clarifier la logique
+- Notation pointée pour documents imbriqués
+- `$regex` pour recherche par motif
+
+## Les grandes familles d'opérateurs
+
+MongoDB organise ses opérateurs en plusieurs catégories. Voici un aperçu de ce que vous allez apprendre :
+
+### 1. Opérateurs de comparaison (Section 3.2)
+
+| Opérateur | Signification | Exemple |
+|-----------|---------------|---------|
+| `$eq` | Égal à (equal) | `{ age: { $eq: 25 } }` |
+| `$ne` | Différent de (not equal) | `{ statut: { $ne: "inactif" } }` |
+| `$gt` | Plus grand que (greater than) | `{ prix: { $gt: 100 } }` |
+| `$gte` | Plus grand ou égal (≥) | `{ age: { $gte: 18 } }` |
+| `$lt` | Plus petit que (less than) | `{ stock: { $lt: 5 } }` |
+| `$lte` | Plus petit ou égal (≤) | `{ prix: { $lte: 50 } }` |
+| `$in` | Dans une liste | `{ ville: { $in: ["Paris", "Lyon"] } }` |
+| `$nin` | Pas dans une liste | `{ statut: { $nin: ["annulé", "remboursé"] } }` |
+
+```javascript
+// Exemple combiné
+db.commandes.find({
+    montant: { $gte: 100, $lte: 500 },    // Entre 100 et 500
+    statut: { $in: ["payé", "expédié"] }   // Statut payé ou expédié
+})
+```
+
+### 2. Opérateurs logiques (Section 3.3)
+
+| Opérateur | Signification | Usage |
+|-----------|---------------|-------|
+| `$and` | ET logique | `{ $and: [condition1, condition2] }` |
+| `$or` | OU logique | `{ $or: [condition1, condition2] }` |
+| `$not` | NON logique (négation) | `{ age: { $not: { $gt: 18 } } }` |
+| `$nor` | NI l'un NI l'autre | `{ $nor: [condition1, condition2] }` |
+
+```javascript
+// Client VIP : Premium OU plus de 50 commandes
+db.clients.find({
+    $or: [
+        { statut: "premium" },
+        { nombreCommandes: { $gte: 50 } }
+    ]
+})
+
+// Produits ni en rupture ni en précommande
+db.produits.find({
+    $nor: [
+        { stock: 0 },
+        { statut: "précommande" }
+    ]
+})
+```
+
+### 3. Opérateurs d'éléments (Section 3.4)
+
+| Opérateur | Signification | Usage |
+|-----------|---------------|-------|
+| `$exists` | Vérifie l'existence d'un champ | `{ email: { $exists: true } }` |
+| `$type` | Vérifie le type d'un champ | `{ age: { $type: "number" } }` |
+
+```javascript
+// Utilisateurs qui ont fourni un numéro de téléphone
+db.utilisateurs.find({
+    telephone: { $exists: true, $ne: null }
+})
+
+// Documents où age est un nombre (et non une chaîne)
+db.personnes.find({
+    age: { $type: "number" }
+})
+```
+
+### 4. Opérateurs d'évaluation (Section 3.5)
+
+| Opérateur | Signification | Usage |
+|-----------|---------------|-------|
+| `$regex` | Recherche par expression régulière | `{ nom: { $regex: /^A/ } }` |
+| `$expr` | Expression permettant d'utiliser des opérateurs d'agrégation | `{ $expr: { $gt: ["$stock", "$seuilAlerte"] } }` |
+| `$text` | Recherche full-text | `{ $text: { $search: "mongodb" } }` |
+| `$mod` | Modulo | `{ age: { $mod: [2, 0] } }` |
+
+```javascript
+// Noms commençant par "Mar"
+db.clients.find({
+    nom: { $regex: /^Mar/i }  // i = insensible à la casse
+})
+
+// Comparer deux champs du même document
+db.produits.find({
+    $expr: { $gt: ["$stock", "$seuilAlerte"] }
+})
+```
+
+### 5. Opérateurs de tableaux (Section 3.6)
+
+| Opérateur | Signification | Usage |
+|-----------|---------------|-------|
+| `$all` | Contient tous les éléments | `{ tags: { $all: ["gaming", "RGB"] } }` |
+| `$elemMatch` | Au moins un élément satisfait les conditions | `{ scores: { $elemMatch: { $gte: 80, $lt: 90 } } }` |
+| `$size` | Taille exacte du tableau | `{ tags: { $size: 3 } }` |
+
+```javascript
+// Produits avec les tags "gaming" ET "portable"
+db.produits.find({
+    tags: { $all: ["gaming", "portable"] }
+})
+
+// Étudiants avec au moins une note entre 15 et 18
+db.etudiants.find({
+    notes: { $elemMatch: { $gte: 15, $lte: 18 } }
+})
+```
+
+## Projections : sélectionner uniquement ce dont vous avez besoin
+
+Les projections vous permettent de contrôler quels champs sont retournés :
+
+```javascript
+// Par défaut, tous les champs sont retournés
+db.produits.find({ categorie: "Informatique" })
+// Retourne : { _id, nom, categorie, prix, stock, marque, ... }
+
+// Projection : seulement nom et prix
+db.produits.find(
+    { categorie: "Informatique" },
+    { nom: 1, prix: 1, _id: 0 }  // 1 = inclure, 0 = exclure
+)
+// Retourne : { nom: "...", prix: ... }
+```
+
+**Pourquoi c'est important ?**
+- ⚡ Réduit la quantité de données transférées
+- 🚀 Améliore les performances
+- 📊 Facilite le traitement côté application
+
+## Tri, limite et pagination : contrôler les résultats
+
+```javascript
+// Tri par prix croissant
+db.produits.find().sort({ prix: 1 })  // 1 = ascendant
+
+// Tri par prix décroissant
+db.produits.find().sort({ prix: -1 })  // -1 = descendant
+
+// Les 5 produits les moins chers
+db.produits.find().sort({ prix: 1 }).limit(5)
+
+// Pagination : page 2 (éléments 11 à 20)
+db.produits.find()
+    .sort({ dateAjout: -1 })  // Plus récents d'abord
+    .skip(10)                  // Sauter les 10 premiers
+    .limit(10)                 // Prendre les 10 suivants
+```
+
+**Cas d'usage réel :** Afficher des résultats de recherche page par page.
+
+## Documents imbriqués et tableaux : cas spéciaux
+
+### Requêtes sur documents imbriqués
+
+```javascript
+// Structure du document
+{
+    _id: 1,
+    nom: "Ordinateur",
+    caracteristiques: {
+        processeur: "Intel i7",
+        ram: 16,
+        stockage: 512
+    }
+}
+
+// Recherche avec notation pointée
+db.produits.find({
+    "caracteristiques.ram": { $gte: 16 }
+})
+
+// Recherche avec document complet (égalité stricte)
+db.produits.find({
+    caracteristiques: {
+        processeur: "Intel i7",
+        ram: 16,
+        stockage: 512
+    }
+})
+// ⚠️ Doit correspondre EXACTEMENT (ordre et champs)
+```
+
+### Requêtes sur tableaux
+
+```javascript
+// Tableau dans le document
+{
+    _id: 1,
+    nom: "Ordinateur",
+    tags: ["gaming", "portable", "bureautique"]
+}
+
+// Contient au moins un élément
+db.produits.find({ tags: "gaming" })
+
+// Contient tous les éléments
+db.produits.find({ tags: { $all: ["gaming", "portable"] } })
+
+// Taille exacte du tableau
+db.produits.find({ tags: { $size: 3 } })
+
+// Position spécifique
+db.produits.find({ "tags.0": "gaming" })  // Premier élément
+```
+
+## Exemple réel complet : système de blog
+
+Voyons un exemple concret qui combine plusieurs concepts :
+
+```javascript
+// Collection d'articles de blog
+db.articles.insertMany([
+    {
+        titre: "Introduction à MongoDB",
+        auteur: "Alice Dupont",
+        categorie: "Tutoriels",
+        tags: ["mongodb", "database", "nosql"],
+        datePublication: new Date("2024-01-15"),
+        vues: 1250,
+        likes: 42,
+        commentaires: [
+            { auteur: "Bob", texte: "Super article !", date: new Date("2024-01-16") },
+            { auteur: "Charlie", texte: "Très utile", date: new Date("2024-01-17") }
+        ],
+        statut: "publié",
+        premium: false
+    },
+    {
+        titre: "Guide avancé des agrégations",
+        auteur: "Alice Dupont",
+        categorie: "Tutoriels",
+        tags: ["mongodb", "agregation", "avancé"],
+        datePublication: new Date("2024-02-01"),
+        vues: 850,
+        likes: 28,
+        commentaires: [
+            { auteur: "David", texte: "Excellent !", date: new Date("2024-02-02") }
+        ],
+        statut: "publié",
+        premium: true
+    },
+    {
+        titre: "Actualités MongoDB 7.0",
+        auteur: "Bob Martin",
+        categorie: "News",
+        tags: ["mongodb", "version", "news"],
+        datePublication: new Date("2024-02-10"),
+        vues: 320,
+        likes: 15,
+        commentaires: [],
+        statut: "brouillon",
+        premium: false
+    }
+])
+```
+
+### Requêtes pratiques sur ce blog
+
+```javascript
+// 1. Articles populaires (plus de 1000 vues)
+db.articles.find({
+    vues: { $gte: 1000 }
+})
+
+// 2. Articles publiés par Alice en 2024
+db.articles.find({
+    auteur: "Alice Dupont",
+    statut: "publié",
+    datePublication: {
+        $gte: new Date("2024-01-01"),
+        $lt: new Date("2025-01-01")
+    }
+})
+
+// 3. Articles avec "mongodb" dans les tags ET plus de 30 likes
+db.articles.find({
+    tags: "mongodb",
+    likes: { $gt: 30 }
+})
+
+// 4. Articles premium OU avec plus de 2 commentaires
+db.articles.find({
+    $or: [
+        { premium: true },
+        { "commentaires.2": { $exists: true } }  // 3ème commentaire existe
+    ]
+})
+
+// 5. Articles récents avec sélection de champs
+db.articles.find(
+    {
+        datePublication: { $gte: new Date("2024-02-01") },
+        statut: "publié"
+    },
+    {
+        titre: 1,
+        auteur: 1,
+        vues: 1,
+        _id: 0
+    }
+).sort({ vues: -1 })
+
+// 6. Recherche textuelle dans le titre
+db.articles.find({
+    titre: { $regex: /mongodb/i }
+})
+
+// 7. Articles sans commentaires
+db.articles.find({
+    $or: [
+        { commentaires: { $size: 0 } },
+        { commentaires: { $exists: false } }
+    ]
+})
+```
+
+## Comptage de documents
+
+```javascript
+// Compter tous les articles
+db.articles.countDocuments()
+
+// Compter les articles publiés
+db.articles.countDocuments({ statut: "publié" })
+
+// Estimation rapide (moins précis, plus rapide)
+db.articles.estimatedDocumentCount()
+```
+
+## Points d'attention pour ce chapitre
+
+### 1. L'ordre des conditions importe (parfois)
+
+```javascript
+// Ces deux requêtes sont équivalentes (ET implicite)
+db.produits.find({ prix: { $lt: 100 }, stock: { $gt: 0 } })
+db.produits.find({ stock: { $gt: 0 }, prix: { $lt: 100 } })
+
+// Mais pour les performances avec des index, l'ordre peut avoir un impact
+```
+
+### 2. Égalité implicite vs explicite
+
+```javascript
+// Égalité implicite (recommandée quand c'est simple)
+db.users.find({ age: 25 })
+
+// Égalité explicite (utile pour la cohérence)
+db.users.find({ age: { $eq: 25 } })
+
+// Les deux sont identiques
+```
+
+### 3. Notation pointée pour documents imbriqués
+
+```javascript
+// ❌ Ne fonctionne pas
+db.produits.find({ caracteristiques.ram: 16 })
+
+// ✅ Correct (guillemets nécessaires)
+db.produits.find({ "caracteristiques.ram": 16 })
+```
+
+### 4. Tableaux : contient vs égalité
+
+```javascript
+// Document
+{ tags: ["a", "b", "c"] }
+
+// Contient "a" (un seul élément suffit)
+db.collection.find({ tags: "a" })  // ✅ Match
+
+// Égalité stricte du tableau complet
+db.collection.find({ tags: ["a", "b", "c"] })  // ✅ Match
+db.collection.find({ tags: ["a", "b"] })      // ❌ Pas de match
+```
+
+## Conseils d'apprentissage pour ce chapitre
+
+### 🎯 Méthodologie recommandée
+
+1. **Section par section** : Ne sautez pas d'étapes, chaque section introduit de nouveaux opérateurs
+2. **Testez chaque exemple** : Créez une collection test et expérimentez
+3. **Combinez progressivement** : Commencez simple, puis combinez plusieurs opérateurs
+4. **Utilisez Compass** : L'interface graphique aide à comprendre les résultats
+5. **Lisez la documentation** : Chaque opérateur a des subtilités
+
+### 💡 Astuces pratiques
+
+```javascript
+// Aide en ligne dans mongosh
+db.collection.find.help()
+
+// Compter les résultats
+db.produits.find({ categorie: "Livres" }).count()
+
+// Formater joliment
+db.produits.find().pretty()
+
+// Voir le plan d'exécution (pour l'optimisation, chapitre 5)
+db.produits.find({ prix: { $gt: 100 } }).explain()
+```
+
+### 🔗 Connexion avec les chapitres futurs
+
+- **Chapitre 4** : La modélisation influencera vos stratégies de requêtes
+- **Chapitre 5** : Les index optimiseront drastiquement ces requêtes
+- **Chapitre 6** : Les agrégations offrent des capacités encore plus puissantes
+
+## Données de test pour pratiquer
+
+Voici un jeu de données complet pour pratiquer :
+
+```javascript
+// Créer une base de test
+use formation_requetes
+
+// Insérer des données variées
+db.pratique.insertMany([
+    // Documents avec structures variées pour tester tous les opérateurs
+    { _id: 1, nom: "Alice", age: 28, ville: "Paris", score: 85, actif: true,
+      hobbies: ["lecture", "voyage"], dateInscription: new Date("2023-01-15") },
+    { _id: 2, nom: "Bob", age: 35, ville: "Lyon", score: 92, actif: true,
+      hobbies: ["sport", "cuisine", "photo"], dateInscription: new Date("2023-03-20") },
+    { _id: 3, nom: "Charlie", age: 22, ville: "Paris", score: 78, actif: false,
+      hobbies: ["gaming"], dateInscription: new Date("2023-06-10") },
+    { _id: 4, nom: "Diana", age: 41, ville: "Marseille", score: 88, actif: true,
+      hobbies: ["lecture", "musique"], dateInscription: new Date("2023-02-05") },
+    { _id: 5, nom: "Étienne", age: 29, ville: "Paris", score: 95, actif: true,
+      hobbies: ["sport", "voyage", "lecture"], dateInscription: new Date("2023-04-12") },
+    { _id: 6, nom: "Fanny", ville: "Lyon", score: 70, actif: false,
+      hobbies: [], dateInscription: new Date("2023-08-30") }  // age manquant
+])
+```
+
+**Essayez ces requêtes :**
+```javascript
+// Personnes de Paris de plus de 25 ans
+// Score entre 80 et 90
+// Inscrites en 2023
+// Ayant "lecture" dans leurs hobbies
+// etc.
+```
+
+## Ce que vous allez maîtriser
+
+À la fin de ce chapitre, vous serez capable de répondre à des questions comme :
+
+- ❓ Trouver tous les produits entre 50€ et 150€ en stock
+- ❓ Rechercher les utilisateurs actifs inscrits après janvier 2024
+- ❓ Filtrer les articles contenant "MongoDB" dans le titre
+- ❓ Compter les commandes supérieures à 100€ par statut
+- ❓ Récupérer uniquement le nom et le prix des produits
+- ❓ Afficher les 10 articles les plus récents
+- ❓ Paginer des résultats de recherche
+- ❓ Requêter des données dans des documents imbriqués
+- ❓ Rechercher dans des tableaux avec conditions complexes
 
 ---
 
-## Prochaines Étapes
+### 📌 Points clés à retenir de cette introduction
 
-Une fois ce chapitre maîtrisé, vous serez prêt pour :
-
-- **Chapitre 4** : Modélisation des Données (concevoir vos schémas)
-- **Chapitre 5** : Index et Optimisation (performances avancées)
-- **Chapitre 6** : Framework d'Agrégation (analyses complexes)
-
----
-
-## Support et Aide
-
-### Questions Fréquentes
-
-**Q : Dois-je connaître JavaScript pour ce chapitre ?**
-R : Une connaissance de base de JavaScript aide, mais n'est pas obligatoire. Les exemples sont expliqués en détail.
-
-**Q : Puis-je sauter des sections ?**
-R : Les sections 3.1-3.3 sont essentielles. Les autres peuvent être consultées selon vos besoins, mais l'ordre recommandé optimise l'apprentissage.
-
-**Q : Combien de temps faut-il pour maîtriser ce chapitre ?**
-R : Comptez 1-2 semaines de pratique régulière pour une bonne maîtrise. La révision périodique est recommandée.
-
-**Q : Les requêtes MongoDB sont-elles similaires à SQL ?**
-R : Conceptuellement oui, mais la syntaxe est différente. Les comparaisons SQL/MongoDB dans chaque section facilitent la transition.
-
-### Communauté et Ressources
-
-- [MongoDB Community Forums](https://www.mongodb.com/community/forums/)
-- [Stack Overflow](https://stackoverflow.com/questions/tagged/mongodb)
-- [MongoDB University](https://university.mongodb.com/) (cours gratuits)
+- MongoDB offre un langage de requête riche et expressif
+- Les requêtes sont des documents JSON utilisant des opérateurs préfixés par $
+- Il existe 5 grandes familles d'opérateurs (comparaison, logiques, éléments, évaluation, tableaux)
+- Les projections permettent de sélectionner uniquement les champs nécessaires
+- Le tri, la limite et la pagination contrôlent la présentation des résultats
+- Les documents imbriqués utilisent la notation pointée
+- Les tableaux ont des opérateurs spécifiques ($all, $elemMatch, $size)
+- Combiner les opérateurs permet de construire des requêtes très sophistiquées
 
 ---
 
-## Récapitulatif
+**Durée estimée du chapitre** : 6-8 heures de lecture et pratique
+**Niveau** : Intermédiaire débutant
+**Prérequis** : Chapitres 1 et 2 complétés, maîtrise des opérations CRUD
 
-Ce chapitre est votre **fondation** pour travailler efficacement avec MongoDB. Les requêtes et filtres sont utilisés dans :
-
-- ✅ Toutes les opérations de lecture
-- ✅ La validation des données
-- ✅ L'optimisation des performances
-- ✅ La construction d'API REST
-- ✅ La création de rapports et d'analyses
-- ✅ Les opérations de maintenance
-
-**Investir du temps dans ce chapitre** vous rendra productif avec MongoDB pour tous vos projets futurs.
+🎯 **Prochaine étape** : Dans la section 3.1, nous allons commencer par la syntaxe de base des requêtes et établir les fondations solides sur lesquelles nous construirons toutes vos compétences de recherche.
 
 ---
 
-## Commençons !
+**Prochaine section** : 3.1 - Syntaxe des requêtes de base
 
-Vous êtes maintenant prêt à débuter votre apprentissage des requêtes MongoDB. Rendez-vous dans la première section pour commencer :
-
-➡️ **3.1 Syntaxe des Requêtes de Base**
-
-Bonne formation ! 🚀
-
----
-
+Prêt à devenir un expert des requêtes MongoDB ? Allons-y ! 🚀
 
 ⏭️ [Syntaxe des requêtes de base](/03-requetes-et-filtres/01-syntaxe-requetes-base.md)

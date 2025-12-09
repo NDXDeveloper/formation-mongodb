@@ -1,577 +1,1091 @@
 🔝 Retour au [Sommaire](/SOMMAIRE.md)
 
-# 8. Transactions dans MongoDB
+# Transactions
 
-## Introduction
+## La garantie ACID dans un monde NoSQL ! 🔐
 
-Les transactions représentent l'un des aspects les plus critiques des systèmes de bases de données modernes, garantissant l'intégrité et la cohérence des données lors d'opérations complexes. Dans MongoDB, l'évolution du support transactionnel illustre parfaitement la maturation d'une base de données NoSQL orientée document vers un système capable de gérer des charges de travail d'entreprise exigeantes.
+Vous maîtrisez maintenant MongoDB : modélisation, requêtes, agrégations, validation. Mais il reste une question fondamentale : **comment garantir la cohérence des données lors d'opérations complexes impliquant plusieurs documents ou collections ?** Comment s'assurer qu'un transfert bancaire débite ET crédite les comptes, sans risque d'incohérence ?
 
-## Contexte Historique et Évolution
+Les transactions MongoDB apportent les garanties ACID (Atomicité, Cohérence, Isolation, Durabilité) au monde NoSQL. Mais contrairement à SQL, leur utilisation nécessite une **compréhension approfondie des compromis** entre cohérence et performance. Ce chapitre va vous révéler quand, comment et surtout **pourquoi** utiliser (ou ne pas utiliser) les transactions.
 
-### L'ère pré-transactions multi-documents
+## Où en sommes-nous dans votre parcours ?
 
-Avant MongoDB 4.0 (juin 2018), le modèle transactionnel de MongoDB se limitait aux opérations atomiques sur un seul document. Cette limitation n'était pas un défaut de conception, mais plutôt une conséquence directe de la philosophie orientée document :
+Vous avez complété les chapitres 1 à 7 et vous maîtrisez maintenant :
+- ✅ La modélisation des données et les patterns
+- ✅ Les index et l'optimisation des performances
+- ✅ Le framework d'agrégation
+- ✅ La validation des schémas
+- ✅ Les opérations CRUD et leur atomicité native
 
-- **Atomicité native** : Un document MongoDB peut contenir des structures imbriquées complexes, permettant de modéliser des relations entières au sein d'un seul document
-- **Dénormalisation encouragée** : L'approche recommandée consistait à concevoir le schéma de manière à ce que les opérations nécessitant l'atomicité se fassent sur un seul document
-- **Performance optimale** : L'absence de transactions distribuées permettait des performances exceptionnelles en lecture et écriture
+**Parfait !** Vous êtes maintenant prêt à comprendre les **garanties transactionnelles** et leurs implications sur l'architecture de vos applications.
 
-Cette approche fonctionnait remarquablement bien pour de nombreux cas d'usage, particulièrement les applications web modernes où la dénormalisation est une pratique courante.
+## Objectifs pédagogiques
 
-### La révolution MongoDB 4.0 et au-delà
+À l'issue de ce chapitre, vous serez capable de :
 
-L'introduction des transactions multi-documents a marqué un tournant majeur :
+- ✅ **Comprendre** les propriétés ACID dans le contexte NoSQL
+- ✅ **Distinguer** atomicité mono-document et transactions multi-documents
+- ✅ **Utiliser** les sessions et transactions correctement
+- ✅ **Configurer** les niveaux de cohérence (Read/Write Concern)
+- ✅ **Évaluer** les compromis performance vs cohérence
+- ✅ **Identifier** les cas où les transactions sont nécessaires
+- ✅ **Éviter** les pièges courants et anti-patterns
+- ✅ **Optimiser** les transactions pour la performance
+- ✅ **Appliquer** les bonnes pratiques transactionnelles
 
-- **MongoDB 4.0 (2018)** : Transactions multi-documents sur les Replica Sets
-- **MongoDB 4.2 (2019)** : Transactions distribuées sur les clusters shardés
-- **MongoDB 5.0+ (2021)** : Améliorations significatives des performances transactionnelles
+## Le paradoxe NoSQL : Performance vs Cohérence
 
-Cette évolution a permis à MongoDB de devenir une solution viable pour des applications nécessitant des garanties transactionnelles strictes, tout en conservant sa flexibilité de schéma et ses capacités de mise à l'échelle horizontale.
+### La promesse initiale du NoSQL
 
-## Le Paradoxe des Transactions dans MongoDB
+NoSQL (et MongoDB) est né avec une promesse : **sacrifier certaines garanties de cohérence pour obtenir des performances et une scalabilité exceptionnelles**.
 
-### Quand utiliser les transactions ?
+```
+Théorème CAP :
+On ne peut avoir simultanément :
+- Consistency (Cohérence)
+- Availability (Disponibilité)  ← MongoDB privilégie ceci
+- Partition tolerance (Tolérance au partitionnement)  ← Et ceci
 
-Les transactions multi-documents sont essentielles dans des scénarios spécifiques :
+→ MongoDB historiquement sacrifiait la cohérence stricte
+```
 
-**Transferts financiers**
+### L'évolution : MongoDB 4.0+ avec transactions ACID
+
+Depuis MongoDB 4.0 (2018), MongoDB offre des **transactions multi-documents** avec garanties ACID complètes :
+
 ```javascript
-// Scénario : Transfert d'argent entre deux comptes
-// Sans transaction, le risque est critique :
-// - L'argent pourrait être débité sans être crédité
-// - Ou crédité sans être débité
-// - Créant une incohérence comptable catastrophique
+// Transaction ACID complète dans MongoDB
+const session = db.getMongo().startSession()
+session.startTransaction()
 
-session.startTransaction();
 try {
-    await accounts.updateOne(
-        { accountId: "A001" },
-        { $inc: { balance: -1000 } },
+    // Opération 1
+    db.accounts.updateOne(
+        { _id: "account1" },
+        { $inc: { balance: -100 } },
         { session }
-    );
+    )
 
-    await accounts.updateOne(
-        { accountId: "B002" },
-        { $inc: { balance: 1000 } },
+    // Opération 2
+    db.accounts.updateOne(
+        { _id: "account2" },
+        { $inc: { balance: 100 } },
         { session }
-    );
+    )
 
-    await session.commitTransaction();
+    // Commit : TOUT réussit ou RIEN
+    session.commitTransaction()
 } catch (error) {
-    await session.abortTransaction();
-    throw error;
+    // Rollback automatique en cas d'erreur
+    session.abortTransaction()
+    throw error
+} finally {
+    session.endSession()
 }
 ```
 
-**Gestion d'inventaire e-commerce**
+**Mais attention :** Les transactions ont un **coût** en termes de performance et de complexité.
+
+## Vue d'ensemble du chapitre
+
+Ce chapitre est organisé en 7 sections qui couvrent tous les aspects des transactions :
+
+### 🎯 Partie 1 : Fondements ACID (Sections 8.1 et 8.2)
+- **8.1** : Rappel ACID et contexte NoSQL
+- **8.2** : Atomicité native mono-document
+
+### 🎯 Partie 2 : Transactions multi-documents (Section 8.3)
+- **8.3.1** : Cas d'usage et nécessité
+- **8.3.2** : Sessions et transactions
+- **8.3.3** : Syntaxe et API
+- **8.3.4** : Commit et rollback
+
+### 🎯 Partie 3 : Niveaux de cohérence (Section 8.4)
+- **8.4.1** : Read Concern (local, majority, linearizable, snapshot)
+- **8.4.2** : Write Concern (w, j, wtimeout)
+- **8.4.3** : Compromis performance vs cohérence
+
+### 🎯 Partie 4 : Avancé (Sections 8.5 à 8.7)
+- **8.5** : Transactions distribuées (sharded clusters)
+- **8.6** : Limites et considérations de performance
+- **8.7** : Bonnes pratiques
+
+## ACID dans SQL : le modèle de référence
+
+### Transaction SQL classique
+
+```sql
+-- Transfert bancaire en SQL
+BEGIN TRANSACTION;
+
+-- Débiter compte source
+UPDATE accounts
+SET balance = balance - 100
+WHERE account_id = 'ACC001';
+
+-- Créditer compte destination
+UPDATE accounts
+SET balance = balance + 100
+WHERE account_id = 'ACC002';
+
+-- Si tout OK : valider
+COMMIT;
+
+-- Si erreur : annuler tout
+-- ROLLBACK; (automatique en cas d'erreur)
+```
+
+**Garanties SQL :**
+- ✅ **A**tomicité : Tout ou rien
+- ✅ **C**ohérence : État valide avant et après
+- ✅ **I**solation : Transactions concurrentes isolées
+- ✅ **D**urabilité : Changements persistés
+
+**Coût :** Acceptable car SQL est conçu pour les transactions.
+
+## Les trois niveaux d'atomicité dans MongoDB
+
+MongoDB offre **trois niveaux** d'atomicité, chacun avec ses compromis :
+
+### Niveau 1 : Atomicité mono-document (native, gratuite)
+
 ```javascript
-// Scénario : Création d'une commande avec mise à jour de l'inventaire
-// Problématique : Éviter la survente
-// - Décrémentation du stock
-// - Création de la commande
-// - Mise à jour du statut client
-// Ces opérations doivent être atomiques
+// Opération atomique sur UN document
+db.accounts.updateOne(
+    { _id: "account1" },
+    {
+        $inc: { balance: -100 },
+        $push: {
+            transactions: {
+                amount: -100,
+                date: new Date(),
+                type: "withdrawal"
+            }
+        }
+    }
+)
 
-session.startTransaction();
+// ✅ Atomique : balance ET transactions modifiés ensemble
+// ✅ Gratuit en performance
+// ✅ Toujours disponible
+```
+
+**Garanties :**
+- ✅ Atomique au niveau document
+- ✅ Pas de surcoût
+- ❌ Limité à un seul document
+
+**Usage :** 90% des cas d'usage si bien modélisé !
+
+### Niveau 2 : Transactions multi-documents dans un Replica Set
+
+```javascript
+// Transaction sur plusieurs documents
+const session = db.getMongo().startSession()
+session.startTransaction()
+
 try {
-    // Vérification et décrémentation du stock
-    const product = await products.findOneAndUpdate(
-        {
-            sku: "LAPTOP-X1",
-            stock: { $gte: 1 }
-        },
-        { $inc: { stock: -1 } },
-        { session, returnDocument: 'after' }
-    );
+    db.accounts.updateOne(
+        { _id: "account1" },
+        { $inc: { balance: -100 } },
+        { session }
+    )
 
-    if (!product) {
-        throw new Error("Stock insuffisant");
+    db.accounts.updateOne(
+        { _id: "account2" },
+        { $inc: { balance: 100 } },
+        { session }
+    )
+
+    session.commitTransaction()
+} catch (error) {
+    session.abortTransaction()
+} finally {
+    session.endSession()
+}
+
+// ✅ Atomique sur plusieurs documents
+// ⚠️ Coût en performance (10-30% plus lent)
+// ⚠️ Complexité accrue
+```
+
+**Garanties :**
+- ✅ ACID complet
+- ✅ Plusieurs documents/collections
+- ⚠️ Coût en performance
+- ⚠️ Latence accrue
+
+**Usage :** Quand vraiment nécessaire (< 10% des cas).
+
+### Niveau 3 : Transactions distribuées (sharded cluster)
+
+```javascript
+// Transaction distribuée sur plusieurs shards
+const session = db.getMongo().startSession()
+session.startTransaction({
+    readConcern: { level: "snapshot" },
+    writeConcern: { w: "majority" }
+})
+
+try {
+    // Documents potentiellement sur des shards différents
+    db.accounts.updateOne(
+        { _id: "account1" },  // Peut-être shard A
+        { $inc: { balance: -100 } },
+        { session }
+    )
+
+    db.accounts.updateOne(
+        { _id: "account2" },  // Peut-être shard B
+        { $inc: { balance: 100 } },
+        { session }
+    )
+
+    session.commitTransaction()
+} catch (error) {
+    session.abortTransaction()
+} finally {
+    session.endSession()
+}
+
+// ✅ Atomique même sur shards différents
+// ❌ Coût significatif (30-50% plus lent)
+// ❌ Complexité élevée
+// ❌ Protocole 2PC (Two-Phase Commit)
+```
+
+**Garanties :**
+- ✅ ACID distribué
+- ✅ Cohérence globale
+- ❌ Coût très élevé
+- ❌ Latence importante
+
+**Usage :** Rare, à éviter si possible.
+
+## Exemple réaliste 1 : Système bancaire
+
+### Approche 1 : Sans transaction (risque d'incohérence)
+
+```javascript
+// ❌ DANGER : Pas atomique entre les deux updates
+async function transferMoney(fromAccount, toAccount, amount) {
+    // Étape 1 : Débiter
+    await db.accounts.updateOne(
+        { _id: fromAccount, balance: { $gte: amount } },
+        { $inc: { balance: -amount } }
+    )
+
+    // 💥 CRASH ICI = argent perdu !
+    // 💥 ERREUR RÉSEAU = incohérence !
+
+    // Étape 2 : Créditer
+    await db.accounts.updateOne(
+        { _id: toAccount },
+        { $inc: { balance: amount } }
+    )
+}
+
+// Problèmes possibles :
+// 1. Crash entre les deux updates → argent débité mais pas crédité
+// 2. Erreur réseau → incohérence
+// 3. Pas de rollback possible
+```
+
+**Risque :** Perte de données, incohérence critique.
+
+### Approche 2 : Avec transaction (cohérence garantie)
+
+```javascript
+// ✅ Transaction ACID : atomicité garantie
+async function transferMoneySafe(fromAccount, toAccount, amount) {
+    const session = db.getMongo().startSession()
+
+    try {
+        session.startTransaction({
+            readConcern: { level: "snapshot" },
+            writeConcern: { w: "majority" }
+        })
+
+        // Vérifier et débiter
+        const debitResult = await db.accounts.updateOne(
+            {
+                _id: fromAccount,
+                balance: { $gte: amount },
+                status: "active"
+            },
+            {
+                $inc: { balance: -amount },
+                $push: {
+                    transactions: {
+                        type: "debit",
+                        amount: -amount,
+                        to: toAccount,
+                        date: new Date()
+                    }
+                }
+            },
+            { session }
+        )
+
+        if (debitResult.matchedCount === 0) {
+            throw new Error("Insufficient funds or inactive account")
+        }
+
+        // Créditer
+        await db.accounts.updateOne(
+            { _id: toAccount, status: "active" },
+            {
+                $inc: { balance: amount },
+                $push: {
+                    transactions: {
+                        type: "credit",
+                        amount: amount,
+                        from: fromAccount,
+                        date: new Date()
+                    }
+                }
+            },
+            { session }
+        )
+
+        // Enregistrer dans l'historique global
+        await db.transferHistory.insertOne(
+            {
+                from: fromAccount,
+                to: toAccount,
+                amount: amount,
+                date: new Date(),
+                status: "completed"
+            },
+            { session }
+        )
+
+        // TOUT réussit
+        await session.commitTransaction()
+        return { success: true }
+
+    } catch (error) {
+        // RIEN ne réussit (rollback automatique)
+        await session.abortTransaction()
+        return { success: false, error: error.message }
+    } finally {
+        session.endSession()
+    }
+}
+
+// Garanties :
+// ✅ Soit tout réussit, soit rien
+// ✅ Pas d'état intermédiaire visible
+// ✅ Rollback automatique en cas d'erreur
+// ✅ Cohérence garantie
+```
+
+**Coût :** ~20-30% plus lent qu'une opération simple, mais cohérence garantie.
+
+### Approche 3 : Modélisation sans transaction (optimale)
+
+```javascript
+// 🎯 MEILLEURE SOLUTION : Tout dans un document
+// Atomicité native = gratuite !
+
+// Structure du document compte
+{
+    _id: "account1",
+    owner: "Alice",
+    balance: 1000,
+    pendingTransfers: [
+        // Transferts en cours
+    ],
+    history: [
+        // Historique limité (100 dernières transactions)
+    ]
+}
+
+// Transfert en 3 phases (pattern Two-Phase Commit applicatif)
+async function transferMoneyOptimized(fromId, toId, amount) {
+    const transferId = new ObjectId()
+    const now = new Date()
+
+    // Phase 1 : Marquer "pending" sur source
+    const phase1 = await db.accounts.updateOne(
+        {
+            _id: fromId,
+            balance: { $gte: amount },
+            "pendingTransfers.transferId": { $ne: transferId }
+        },
+        {
+            $inc: { balance: -amount },
+            $push: {
+                pendingTransfers: {
+                    transferId,
+                    to: toId,
+                    amount,
+                    state: "pending",
+                    date: now
+                }
+            }
+        }
+    )
+
+    if (phase1.matchedCount === 0) {
+        throw new Error("Insufficient funds")
     }
 
-    // Création de la commande
-    await orders.insertOne({
-        orderId: generateOrderId(),
-        customerId: "C12345",
-        items: [{ sku: "LAPTOP-X1", quantity: 1 }],
-        status: "confirmed",
-        timestamp: new Date()
-    }, { session });
-
-    // Mise à jour du profil client
-    await customers.updateOne(
-        { customerId: "C12345" },
+    // Phase 2 : Appliquer sur destination
+    await db.accounts.updateOne(
+        { _id: toId },
         {
-            $inc: { totalOrders: 1 },
-            $push: { recentOrders: { $each: [orderId], $slice: -10 } }
-        },
-        { session }
-    );
+            $inc: { balance: amount },
+            $push: {
+                pendingTransfers: {
+                    transferId,
+                    from: fromId,
+                    amount,
+                    state: "applied",
+                    date: now
+                }
+            }
+        }
+    )
 
-    await session.commitTransaction();
-} catch (error) {
-    await session.abortTransaction();
-    throw error;
-}
-```
-
-### Quand NE PAS utiliser les transactions ?
-
-**Anti-pattern : Utilisation systématique des transactions**
-
-Beaucoup de développeurs habitués aux bases relationnelles ont tendance à envelopper toutes leurs opérations dans des transactions. C'est une erreur coûteuse dans MongoDB :
-
-```javascript
-// ❌ MAUVAISE PRATIQUE - Transaction inutile
-session.startTransaction();
-await users.updateOne(
-    { userId: "U001" },
-    { $set: { lastLogin: new Date() } },
-    { session }
-);
-await session.commitTransaction();
-
-// ✅ BONNE PRATIQUE - Opération atomique naturelle
-await users.updateOne(
-    { userId: "U001" },
-    { $set: { lastLogin: new Date() } }
-);
-```
-
-**Impact sur les performances**
-
-Les transactions multi-documents introduisent un coût significatif :
-
-- **Latence accrue** : 2-5x plus lente qu'une opération non transactionnelle
-- **Verrouillage** : Les transactions acquièrent des verrous, créant des points de contention
-- **Pression mémoire** : Les sessions transactionnelles consomment plus de ressources
-- **Complexité de retry** : Les conflits transactionnels nécessitent une logique de retry sophistiquée
-
-## Compromis Fondamentaux
-
-### Performance vs Cohérence
-
-MongoDB vous offre un spectre de choix entre performance et garanties de cohérence :
-
-**Cas 1 : Application de réseaux sociaux**
-```javascript
-// Scénario : Publication d'un post avec compteurs
-// Compromis : Cohérence éventuelle acceptable
-
-// Approche 1 : Sans transaction (RECOMMANDÉ)
-// - Le post est créé immédiatement
-// - Les compteurs sont mis à jour de manière asynchrone
-// - Latence minimale pour l'utilisateur
-
-await posts.insertOne({
-    postId: generateId(),
-    userId: "U001",
-    content: "Mon nouveau post",
-    timestamp: new Date(),
-    likes: 0,
-    comments: 0
-});
-
-// Mise à jour asynchrone du profil (peut être dans un job séparé)
-await users.updateOne(
-    { userId: "U001" },
-    { $inc: { postCount: 1 } }
-);
-
-// Impact : Si le deuxième appel échoue, le compteur sera légèrement inexact
-// mais cela n'affecte pas l'expérience utilisateur de manière critique
-```
-
-**Cas 2 : Système de facturation**
-```javascript
-// Scénario : Génération d'une facture avec mise à jour du statut client
-// Compromis : Cohérence stricte requise
-
-session.startTransaction();
-try {
-    const invoice = await invoices.insertOne({
-        invoiceId: generateInvoiceId(),
-        customerId: "C001",
-        amount: 15000,
-        status: "pending",
-        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-    }, { session });
-
-    await customers.updateOne(
-        { customerId: "C001" },
+    // Phase 3 : Nettoyer les pending
+    await db.accounts.updateOne(
+        { _id: fromId },
         {
-            $inc: {
-                outstandingBalance: 15000,
-                invoiceCount: 1
+            $pull: {
+                pendingTransfers: { transferId }
             },
-            $set: { lastInvoiceDate: new Date() }
-        },
-        { session }
-    );
+            $push: {
+                history: {
+                    $each: [{
+                        transferId,
+                        type: "transfer_out",
+                        amount: -amount,
+                        to: toId,
+                        date: now
+                    }],
+                    $slice: -100  // Garder seulement 100 dernières
+                }
+            }
+        }
+    )
 
-    await session.commitTransaction();
-} catch (error) {
-    await session.abortTransaction();
-    // Dans un contexte financier, l'échec doit être géré rigoureusement
-    await auditLog.insertOne({
-        event: "invoice_creation_failed",
-        customerId: "C001",
-        error: error.message,
-        timestamp: new Date()
-    });
-    throw error;
+    await db.accounts.updateOne(
+        { _id: toId },
+        {
+            $pull: {
+                pendingTransfers: { transferId }
+            },
+            $push: {
+                history: {
+                    $each: [{
+                        transferId,
+                        type: "transfer_in",
+                        amount: amount,
+                        from: fromId,
+                        date: now
+                    }],
+                    $slice: -100
+                }
+            }
+        }
+    )
+}
+
+// Avantages :
+// ✅ Atomicité native (chaque update est atomique)
+// ✅ Pas de transaction nécessaire
+// ✅ Performance maximale
+// ✅ État récupérable (pendingTransfers permet de nettoyer si crash)
+
+// Process de récupération en cas de crash
+async function cleanupPendingTransfers() {
+    const oldPending = await db.accounts.find({
+        "pendingTransfers.date": {
+            $lt: new Date(Date.now() - 5 * 60 * 1000)  // > 5 minutes
+        }
+    })
+
+    // Rollback ou compléter selon l'état
 }
 ```
 
-### Scalabilité vs Garanties Transactionnelles
+**Avantage :** Performance native, pas de transaction nécessaire !
 
-**Le défi de la distribution**
+## Exemple réaliste 2 : E-commerce - Commande et stock
 
-Plus votre système est distribué, plus les transactions deviennent coûteuses :
+### Scénario
 
-```javascript
-// Scénario : Cluster shardé avec 10 shards
-// Une transaction touchant plusieurs shards doit :
-// 1. Coordonner les verrous sur tous les shards impliqués
-// 2. Maintenir la cohérence entre les shards
-// 3. Gérer les échecs partiels potentiels
+Un client passe une commande. Il faut :
+1. Créer la commande
+2. Décrémenter le stock
+3. Créer une notification
+4. Tout doit réussir ou échouer ensemble
 
-// Impact réel mesuré sur un cluster production :
-// - Opération simple sur 1 shard : 5ms
-// - Transaction sur 2 shards : 50ms (10x plus lent)
-// - Transaction sur 5 shards : 200ms (40x plus lent)
-// - Risque de conflits et timeouts exponentiellement plus élevé
-```
-
-**Stratégie de conception pour la scalabilité**
+### Approche 1 : Avec transaction (cohérence maximale)
 
 ```javascript
-// Alternative 1 : Modélisation pour éviter les transactions
-// Au lieu de séparer commandes et lignes de commande :
+async function createOrder(customerId, items) {
+    const session = db.getMongo().startSession()
 
-// ❌ DIFFICILE À SCALER
-collections:
-  - orders: { orderId, customerId, total, status }
-  - orderLines: { orderLineId, orderId, productId, quantity, price }
-// Nécessite des transactions pour maintenir la cohérence
+    try {
+        session.startTransaction({
+            readConcern: { level: "snapshot" },
+            writeConcern: { w: "majority" }
+        })
 
-// ✅ FACILE À SCALER
-orders: {
-    orderId: "ORD001",
-    customerId: "C001",
-    items: [
-        { productId: "P001", quantity: 2, price: 50 },
-        { productId: "P002", quantity: 1, price: 100 }
-    ],
-    total: 200,
-    status: "confirmed",
-    timestamp: ISODate("2024-01-15T10:30:00Z")
-}
-// Tout est atomique, pas de transaction nécessaire
-```
-
-### Complexité Opérationnelle
-
-**Gestion des échecs transactionnels**
-
-Les transactions introduisent une complexité significative dans la gestion des erreurs :
-
-```javascript
-// Scénario réaliste : Système de réservation
-// Problématique : Gérer les conflits de concurrence
-
-async function createReservationWithRetry(reservationData, maxRetries = 3) {
-    let attempt = 0;
-
-    while (attempt < maxRetries) {
-        const session = client.startSession();
-
-        try {
-            session.startTransaction({
-                readConcern: { level: "snapshot" },
-                writeConcern: { w: "majority" },
-                readPreference: "primary"
-            });
-
-            // Vérifier la disponibilité
-            const room = await rooms.findOne(
+        // 1. Vérifier et réserver le stock
+        for (const item of items) {
+            const result = await db.products.updateOne(
                 {
-                    roomId: reservationData.roomId,
-                    status: "available"
+                    _id: item.productId,
+                    stock: { $gte: item.quantity }
+                },
+                {
+                    $inc: { stock: -item.quantity },
+                    $inc: { reservedStock: item.quantity }
                 },
                 { session }
-            );
+            )
 
-            if (!room) {
-                throw new Error("Chambre non disponible");
+            if (result.matchedCount === 0) {
+                throw new Error(`Insufficient stock for product ${item.productId}`)
             }
+        }
 
-            // Créer la réservation
-            await reservations.insertOne({
-                ...reservationData,
-                status: "confirmed",
+        // 2. Créer la commande
+        const order = await db.orders.insertOne(
+            {
+                customerId,
+                items,
+                total: items.reduce((sum, item) => sum + item.price * item.quantity, 0),
+                status: "pending",
                 createdAt: new Date()
-            }, { session });
+            },
+            { session }
+        )
 
-            // Mettre à jour le statut de la chambre
-            await rooms.updateOne(
-                { roomId: reservationData.roomId },
-                {
-                    $set: {
-                        status: "reserved",
-                        reservedUntil: reservationData.checkoutDate
+        // 3. Créer notification
+        await db.notifications.insertOne(
+            {
+                userId: customerId,
+                type: "order_created",
+                orderId: order.insertedId,
+                message: "Your order has been created",
+                createdAt: new Date()
+            },
+            { session }
+        )
+
+        await session.commitTransaction()
+        return { success: true, orderId: order.insertedId }
+
+    } catch (error) {
+        await session.abortTransaction()
+        return { success: false, error: error.message }
+    } finally {
+        session.endSession()
+    }
+}
+
+// Garantie : Cohérence absolue
+// Coût : ~30-40% plus lent
+```
+
+### Approche 2 : Sans transaction + compensation (performance)
+
+```javascript
+async function createOrderEventual(customerId, items) {
+    try {
+        // 1. Créer commande d'abord (état "pending")
+        const order = await db.orders.insertOne({
+            customerId,
+            items,
+            total: items.reduce((sum, item) => sum + item.price * item.quantity, 0),
+            status: "pending_stock",  // État intermédiaire
+            createdAt: new Date()
+        })
+
+        // 2. Réserver stock (opérations atomiques individuelles)
+        const stockUpdates = await Promise.allSettled(
+            items.map(item =>
+                db.products.updateOne(
+                    {
+                        _id: item.productId,
+                        stock: { $gte: item.quantity }
+                    },
+                    {
+                        $inc: { stock: -item.quantity }
                     }
-                },
-                { session }
-            );
+                )
+            )
+        )
 
-            await session.commitTransaction();
-            return { success: true };
+        // Vérifier si tous les stocks ont été réservés
+        const allStockReserved = stockUpdates.every(
+            result => result.status === "fulfilled" && result.value.matchedCount > 0
+        )
 
-        } catch (error) {
-            await session.abortTransaction();
+        if (!allStockReserved) {
+            // Compensation : annuler la commande
+            await db.orders.updateOne(
+                { _id: order.insertedId },
+                { $set: { status: "cancelled_insufficient_stock" } }
+            )
 
-            // TransientTransactionError : peut être retenté
-            if (error.hasErrorLabel('TransientTransactionError')) {
-                attempt++;
-                console.log(`Tentative ${attempt} échouée, retry...`);
-                await sleep(Math.pow(2, attempt) * 100); // Backoff exponentiel
-                continue;
-            }
-
-            // UnknownTransactionCommitResult : statut incertain
-            if (error.hasErrorLabel('UnknownTransactionCommitResult')) {
-                // Nécessite une vérification manuelle du résultat
-                const existing = await reservations.findOne({
-                    roomId: reservationData.roomId,
-                    guestId: reservationData.guestId,
-                    checkInDate: reservationData.checkInDate
-                });
-
-                if (existing) {
-                    return { success: true, note: "Transaction réussie après incertitude" };
+            // Restaurer les stocks déjà réservés
+            for (let i = 0; i < stockUpdates.length; i++) {
+                if (stockUpdates[i].status === "fulfilled" &&
+                    stockUpdates[i].value.matchedCount > 0) {
+                    await db.products.updateOne(
+                        { _id: items[i].productId },
+                        { $inc: { stock: items[i].quantity } }
+                    )
                 }
             }
 
-            throw error;
-        } finally {
-            await session.endSession();
+            throw new Error("Insufficient stock")
         }
-    }
 
-    throw new Error(`Échec après ${maxRetries} tentatives`);
-}
-```
+        // 3. Finaliser la commande
+        await db.orders.updateOne(
+            { _id: order.insertedId },
+            { $set: { status: "confirmed" } }
+        )
 
-## Implications Architecturales
+        // 4. Notification (asynchrone, best-effort)
+        db.notifications.insertOne({
+            userId: customerId,
+            type: "order_created",
+            orderId: order.insertedId,
+            createdAt: new Date()
+        }).catch(err => console.error("Notification failed:", err))
 
-### Impact sur la Conception des Systèmes
-
-**Pattern : Saga au lieu de transactions distribuées**
-
-Pour les systèmes fortement distribués, les sagas offrent une alternative plus scalable :
-
-```javascript
-// Scénario : Plateforme de voyage (vols + hôtels + voitures)
-// Au lieu d'une transaction distribuée massive :
-
-// ❌ DIFFICILE : Transaction unique
-session.startTransaction();
-await flights.reserve(..., { session });
-await hotels.reserve(..., { session });
-await cars.reserve(..., { session });
-await payments.charge(..., { session });
-await session.commitTransaction();
-// Problème : Timeout probable, rollback coûteux
-
-// ✅ SCALABLE : Saga avec compensation
-async function bookTravel(travelData) {
-    const bookingId = generateId();
-    const compensations = [];
-
-    try {
-        // Étape 1 : Réserver le vol
-        const flightReservation = await flights.reserve({
-            ...travelData.flight,
-            bookingId
-        });
-        compensations.push(() => flights.cancel(flightReservation.id));
-
-        // Étape 2 : Réserver l'hôtel
-        const hotelReservation = await hotels.reserve({
-            ...travelData.hotel,
-            bookingId
-        });
-        compensations.push(() => hotels.cancel(hotelReservation.id));
-
-        // Étape 3 : Réserver la voiture
-        const carReservation = await cars.reserve({
-            ...travelData.car,
-            bookingId
-        });
-        compensations.push(() => cars.cancel(carReservation.id));
-
-        // Étape 4 : Paiement
-        await payments.charge({
-            amount: calculateTotal(flightReservation, hotelReservation, carReservation),
-            customerId: travelData.customerId,
-            bookingId
-        });
-
-        // Succès : Confirmer toutes les réservations
-        await confirmAllReservations(bookingId);
-
-        return { success: true, bookingId };
+        return { success: true, orderId: order.insertedId }
 
     } catch (error) {
-        // Échec : Exécuter les compensations dans l'ordre inverse
-        console.log("Échec de la réservation, annulation en cours...");
+        return { success: false, error: error.message }
+    }
+}
 
-        for (const compensate of compensations.reverse()) {
-            try {
-                await compensate();
-            } catch (compensationError) {
-                // Logger l'échec de compensation pour intervention manuelle
-                await logCompensationFailure(bookingId, compensationError);
+// Garantie : Eventual consistency + compensation
+// Coût : Performance native (~2x plus rapide)
+// Compromis : États intermédiaires visibles brièvement
+```
+
+**Choix :**
+- Stock critique + faible volumétrie → Transaction
+- High throughput + compensation acceptable → Sans transaction
+
+## Read Concern et Write Concern : Le réglage fin
+
+### Read Concern : Quel niveau de lecture ?
+
+```javascript
+// Niveau "local" (par défaut, plus rapide)
+db.orders.find().readConcern("local")
+// ✅ Lit depuis le nœud local
+// ⚠️ Peut lire des données non répliquées (risque de perte)
+// 🚀 Performance maximale
+
+// Niveau "majority" (recommandé en production)
+db.orders.find().readConcern("majority")
+// ✅ Lit seulement les données répliquées sur la majorité
+// ✅ Pas de risque de lecture de données perdues après crash
+// ⚠️ Légèrement plus lent (~5-10%)
+
+// Niveau "snapshot" (dans les transactions)
+session.startTransaction({
+    readConcern: { level: "snapshot" }
+})
+// ✅ Isolation complète (lectures cohérentes dans le temps)
+// ✅ Pas de lectures sales (dirty reads)
+// ⚠️ Seulement dans les transactions
+
+// Niveau "linearizable" (cohérence la plus forte)
+db.criticalData.findOne(
+    { _id: "config" },
+    { readConcern: { level: "linearizable" } }
+)
+// ✅ Garantit la lecture la plus récente
+// ✅ Lecture linéarisable (ordre global garanti)
+// ❌ Impact performance significatif
+// ❌ Seulement pour lecture d'un seul document
+```
+
+### Write Concern : Quel niveau d'écriture ?
+
+```javascript
+// Niveau par défaut (w: 1)
+db.orders.insertOne(
+    { /* data */ },
+    { writeConcern: { w: 1 } }
+)
+// ✅ ACK dès que primary écrit
+// ⚠️ Risque de perte si primary crash avant réplication
+// 🚀 Très rapide
+
+// Niveau "majority" (recommandé en production)
+db.orders.insertOne(
+    { /* data */ },
+    { writeConcern: { w: "majority", j: true, wtimeout: 5000 } }
+)
+// ✅ ACK après réplication sur majorité des nœuds
+// ✅ Données durables (pas de perte après crash)
+// ✅ j: true = écrit dans le journal (fsync)
+// ⚠️ Plus lent (~10-20%)
+// ⚠️ wtimeout : timeout si réplication trop lente
+
+// Niveau maximum (tous les nœuds)
+db.criticalData.insertOne(
+    { /* data */ },
+    { writeConcern: { w: "all", j: true, wtimeout: 10000 } }
+)
+// ✅ ACK après écriture sur TOUS les nœuds
+// ❌ Très lent
+// ❌ Bloqué si un nœud est down
+```
+
+### Tableau des compromis
+
+| Read/Write Concern | Performance | Durabilité | Usage |
+|-------------------|-------------|------------|-------|
+| local / w:1 | ⚡⚡⚡ Excellente | ⚠️ Risque perte | Logs, analytics, cache |
+| majority / w:1 | ⚡⚡ Bonne | ⚠️ Risque perte write | Lectures critiques |
+| local / w:majority | ⚡⚡ Bonne | ✅ Durable | Écritures critiques |
+| majority / w:majority | ⚡ Acceptable | ✅ Très durable | **Production standard** |
+| snapshot / w:majority | 🐌 Lent | ✅ Transaction ACID | Transactions critiques |
+| linearizable / w:all | 🐌🐌 Très lent | ✅ Maximum | Config système uniquement |
+
+## Les coûts réels des transactions
+
+### Benchmark : Insertion simple
+
+```javascript
+// Sans transaction
+const start1 = Date.now()
+for (let i = 0; i < 1000; i++) {
+    await db.test.insertOne({ value: i })
+}
+console.log("Sans transaction:", Date.now() - start1, "ms")
+// Résultat : ~500ms
+
+// Avec transaction
+const start2 = Date.now()
+for (let i = 0; i < 1000; i++) {
+    const session = db.getMongo().startSession()
+    session.startTransaction()
+    await db.test.insertOne({ value: i }, { session })
+    await session.commitTransaction()
+    session.endSession()
+}
+console.log("Avec transaction:", Date.now() - start2, "ms")
+// Résultat : ~1500ms (3x plus lent)
+```
+
+### Impact sur le throughput
+
+```
+Opérations/seconde :
+
+Sans transaction :        10,000 ops/s  ████████████████████
+Transaction mono-shard :   7,000 ops/s  ██████████████
+Transaction multi-shard :  3,000 ops/s  ██████
+```
+
+### Consommation mémoire
+
+```javascript
+// Transactions accumulent les opérations en mémoire
+session.startTransaction()
+
+for (let i = 0; i < 100000; i++) {
+    await db.large.insertOne({ data: "x".repeat(1000) }, { session })
+    // ⚠️ Tout est gardé en mémoire jusqu'au commit
+}
+
+await session.commitTransaction()
+// 💥 Risque : Out of memory si transaction trop grosse
+```
+
+**Limite :** Transaction > 16 Mo en mémoire → Erreur
+
+## Quand utiliser les transactions ?
+
+### ✅ Utiliser les transactions quand :
+
+1. **Cohérence critique**
+```javascript
+// Système financier : transferts d'argent
+// → Transaction obligatoire
+```
+
+2. **Opérations multi-collections interdépendantes**
+```javascript
+// Commande + Stock + Payment
+// Si cohérence stricte requise
+```
+
+3. **Rollback automatique essentiel**
+```javascript
+// Processus complexe où annulation est critique
+```
+
+4. **Volumétrie faible à moyenne**
+```javascript
+// < 1000 transactions/seconde
+```
+
+### ❌ Éviter les transactions quand :
+
+1. **Performance critique**
+```javascript
+// Analytics en temps réel
+// Logs à haute fréquence
+// → Eventual consistency acceptable
+```
+
+2. **Données indépendantes**
+```javascript
+// Insertion de metrics
+// Logs d'activité
+// → Pas de relation critique
+```
+
+3. **Opération mono-document possible**
+```javascript
+// Modélisation embedded
+// → Atomicité native gratuite !
+```
+
+4. **High throughput requis**
+```javascript
+// > 10,000 ops/seconde
+// → Transaction = goulot d'étranglement
+```
+
+## Anti-patterns et pièges
+
+### ❌ Anti-pattern 1 : Transactions longues
+
+```javascript
+// MAUVAIS : Transaction qui dure longtemps
+session.startTransaction()
+
+// Lecture de 10,000 documents
+const docs = await db.large.find({}, { session }).toArray()
+
+// Traitement long (5 secondes)
+await processHeavyComputation(docs)
+
+// Écriture
+await db.result.insertMany(processed, { session })
+
+await session.commitTransaction()
+
+// Problèmes :
+// 1. Locks maintenus longtemps
+// 2. Risque de timeout
+// 3. Bloque autres transactions
+```
+
+**Solution :** Transactions courtes, traitement hors transaction.
+
+### ❌ Anti-pattern 2 : Trop d'opérations
+
+```javascript
+// MAUVAIS : 10,000 opérations dans une transaction
+session.startTransaction()
+
+for (let i = 0; i < 10000; i++) {
+    await db.test.insertOne({ value: i }, { session })
+}
+
+await session.commitTransaction()
+// 💥 Timeout, out of memory, performance désastreuse
+```
+
+**Solution :** Limiter à ~100-1000 opérations par transaction.
+
+### ❌ Anti-pattern 3 : Transactions imbriquées
+
+```javascript
+// MAUVAIS : Essayer d'imbriquer les transactions
+session1.startTransaction()
+    // ...
+    session2.startTransaction()  // ❌ Pas supporté !
+        // ...
+    session2.commitTransaction()
+    // ...
+session1.commitTransaction()
+```
+
+**Solution :** MongoDB ne supporte pas les transactions imbriquées.
+
+### ❌ Anti-pattern 4 : Ne pas gérer les erreurs de retry
+
+```javascript
+// MAUVAIS : Pas de retry logic
+try {
+    session.startTransaction()
+    // ... opérations
+    await session.commitTransaction()
+} catch (error) {
+    await session.abortTransaction()
+    throw error  // ❌ Pas de retry
+}
+
+// Problème : TransientTransactionError non géré
+```
+
+**Solution :** Implémenter retry logic.
+
+## Bonnes pratiques : aperçu
+
+### ✅ Bonne pratique 1 : Transactions courtes
+
+```javascript
+// BON : Transaction rapide et focalisée
+session.startTransaction()
+try {
+    // Seulement les opérations critiques
+    await db.accounts.updateOne({ _id: from }, { $inc: { balance: -100 } }, { session })
+    await db.accounts.updateOne({ _id: to }, { $inc: { balance: 100 } }, { session })
+    await session.commitTransaction()
+} catch (error) {
+    await session.abortTransaction()
+}
+```
+
+### ✅ Bonne pratique 2 : Read/Write Concern appropriés
+
+```javascript
+// BON : Niveau adapté au cas d'usage
+session.startTransaction({
+    readConcern: { level: "snapshot" },      // Isolation
+    writeConcern: { w: "majority", j: true } // Durabilité
+})
+```
+
+### ✅ Bonne pratique 3 : Timeout et retry
+
+```javascript
+// BON : Gestion complète des erreurs
+async function withRetry(operation, maxRetries = 3) {
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            return await operation()
+        } catch (error) {
+            if (error.hasErrorLabel("TransientTransactionError") && i < maxRetries - 1) {
+                console.log(`Retry ${i + 1}/${maxRetries}`)
+                await new Promise(resolve => setTimeout(resolve, 100 * (i + 1)))
+                continue
             }
+            throw error
         }
-
-        throw error;
     }
 }
 ```
 
-### Monitoring et Observabilité
-
-Les transactions nécessitent un monitoring spécifique :
+### ✅ Bonne pratique 4 : Préférer la modélisation
 
 ```javascript
-// Métriques essentielles à surveiller
+// MIEUX : Éviter la transaction via la modélisation
+// Au lieu de transaction sur 2 documents :
+{
+    _id: "order1",
+    items: [/* ... */],
+    payment: {      // ← Embedded
+        amount: 150,
+        status: "pending",
+        transactionId: "..."
+    }
+}
 
-// 1. Durée des transactions
-db.currentOp({
-    active: true,
-    op: "command",
-    "command.commitTransaction": { $exists: true }
-})
-
-// 2. Transactions en attente (deadlock potentiel)
-db.currentOp({
-    active: true,
-    secs_running: { $gt: 10 },
-    "transaction": { $exists: true }
-})
-
-// 3. Taux d'échec transactionnel
-db.serverStatus().transactions
-// Analyse :
-// - retriedCommandsCount : nombre de retry
-// - retriedStatementsCount : instructions retry
-// - totalAborted : transactions annulées
-// - totalCommitted : transactions réussies
-// Ratio totalAborted / totalCommitted > 5% = problème
-
-// 4. Contention de verrous
-db.serverStatus().locks
-// GlobalLock.currentQueue indique la pression
+// Mise à jour atomique
+db.orders.updateOne(
+    { _id: "order1" },
+    { $set: { "payment.status": "completed" } }
+)
+// ✅ Atomique sans transaction !
 ```
 
-## Considérations de Coût-Bénéfice
+## Le théorème CAP appliqué
 
-### Analyse Décisionnelle
+MongoDB vous permet de **choisir** votre position sur le spectre CAP :
 
-**Matrice de décision pour l'utilisation des transactions**
+```
+High Consistency                          High Availability
+(Transactions, majority)                  (local, w:1)
+        |                                        |
+        |                                        |
+    [Finance]                              [Analytics]
+    [Inventory]                            [Logs]
+        |                                        |
+        ↓                                        ↓
+    Slow, Safe                            Fast, Eventual
+```
 
-| Critère | Poids | Sans Transaction | Avec Transaction |
-|---------|-------|------------------|------------------|
-| **Intégrité critique** | 10 | Si incohérence = catastrophe → Transaction requise | |
-| **Fréquence d'opération** | 8 | >1000 ops/sec → Préférer design sans transaction | |
-| **Distribution géographique** | 7 | Multi-région → Coût prohibitif des transactions | |
-| **Complexité acceptable** | 6 | Équipe expérimentée → Peut gérer transactions | |
-| **Budget latence** | 9 | <50ms requis → Éviter transactions | |
-
-**Exemple de décision : Système de votes en ligne**
-
+**Configuration :**
 ```javascript
-// Contexte : Application de sondages en temps réel
-// Volume : 10,000 votes/seconde durant les pics
-// Exigence : Latence <20ms perçue par l'utilisateur
+// Consistency > Availability
+{
+    readConcern: "majority",
+    writeConcern: { w: "majority", j: true }
+}
 
-// Analyse :
-// - Cohérence absolue non critique (vote dupliqué = biais négligeable)
-// - Performance critique (expérience utilisateur)
-// - Volume élevé (scalabilité prioritaire)
-
-// Décision : SANS transaction
-
-// Solution optimisée
-await votes.updateOne(
-    {
-        pollId: "P001",
-        optionId: "O1"
-    },
-    {
-        $inc: { count: 1 },
-        $addToSet: { voters: userId } // Prévention de vote dupliqué
-    },
-    { upsert: true }
-);
-
-// Résultat :
-// - Latence : 5ms moyenne
-// - Débit : 15,000 ops/sec
-// - Cohérence éventuelle acceptable
-// - Pas de verrous bloquants
+// Availability > Consistency
+{
+    readConcern: "local",
+    writeConcern: { w: 1 }
+}
 ```
 
-## Évolution et Maturité
+## Conseils d'apprentissage
 
-### MongoDB Transaction Maturity Model
+### 🎯 Méthodologie
 
-**Niveau 1 : Atomicité document (pré-4.0)**
-- Modélisation orientée document unique
-- Performance maximale
-- Adapté à 80% des cas d'usage web
+1. **Questionner d'abord :** Ai-je vraiment besoin d'une transaction ?
+2. **Modéliser pour éviter :** La meilleure transaction est celle qu'on n'a pas besoin de faire
+3. **Commencer sans :** Puis ajouter si nécessaire
+4. **Mesurer l'impact :** Benchmark avant/après
+5. **Documenter le choix :** Pourquoi transaction ici ?
 
-**Niveau 2 : Transactions multi-documents Replica Set (4.0+)**
-- Garanties ACID sur collections multiples
-- Même serveur logique
-- Latence acceptable (<100ms)
+### 🔗 Lien avec les autres chapitres
 
-**Niveau 3 : Transactions distribuées Sharded (4.2+)**
-- Garanties ACID cross-shard
-- Coordination distribuée
-- Coût de performance significatif
-
-**Niveau 4 : Hybrid Approach (Recommandé)**
-- 90% du code : opérations atomiques simples
-- 10% du code : transactions pour cas critiques
-- Architecture saga pour processus longs
-
-## Perspectives et Recommandations
-
-### Règles d'Or
-
-1. **"Transaction as Last Resort"** : N'utilisez une transaction que si la conception sans transaction est impossible ou dangereuse
-
-2. **"Model First, Transact Later"** : Investissez dans la modélisation des données pour minimiser le besoin de transactions
-
-3. **"Measure Everything"** : Avant de déployer des transactions en production, benchmarquez leur impact réel sur votre charge de travail
-
-4. **"Plan for Failure"** : Implémentez une logique de retry robuste et un monitoring transactionnel dès le premier jour
-
-5. **"Consider Eventual Consistency"** : Pour beaucoup de cas d'usage, la cohérence éventuelle avec idempotence est suffisante et beaucoup plus performante
-
-### Vision Pragmatique
-
-MongoDB n'est pas né comme base de données transactionnelle, et ce n'est pas son point fort naturel. Son véritable avantage réside dans :
-- La flexibilité du schéma
-- L'excellente performance en lecture/écriture
-- La scalabilité horizontale native
-- La modélisation de domaine riche via les documents
-
-Les transactions sont un outil puissant ajouté à cette boîte à outils, mais comme tout outil puissant, elles doivent être utilisées avec discernement et compréhension de leurs implications.
+- **Chapitre 4** : La modélisation peut éliminer 90% des besoins de transactions
+- **Chapitre 5** : Les index impactent les performances des transactions
+- **Chapitre 9** : Les transactions nécessitent un Replica Set
+- **Chapitre 10** : Impact majeur sur les transactions distribuées
+- **Chapitre 17** : Optimisation cruciale pour les transactions
 
 ---
 
+### 📌 Points clés à retenir
+
+- MongoDB offre ACID depuis la version 4.0
+- Trois niveaux : mono-document (gratuit), multi-documents (coût), distribué (coût élevé)
+- Transactions = compromis performance vs cohérence
+- Read/Write Concern configurent le niveau de garantie
+- Coût réel : 10-50% de performance en moins
+- La plupart des cas n'ont PAS besoin de transactions
+- Modélisation > Transactions
+- Transactions courtes, opérations limitées
+- Gérer les erreurs TransientTransactionError avec retry
+- Choisir le bon niveau selon le cas d'usage
+
+---
+
+**Durée estimée du chapitre** : 6-8 heures
+**Niveau** : Avancé nécessitant compréhension ACID
+**Prérequis** : Chapitres 1-7, concepts de cohérence
+
+🎯 **Prochaine étape** : Section 8.1 pour approfondir ACID dans le contexte NoSQL.
+
+---
+
+**Prochaine section** : 8.1 - Rappel : ACID
+
+Prêt à maîtriser les transactions MongoDB ? Allons-y ! 🔐
 
 ⏭️ [Rappel : ACID (Atomicité, Cohérence, Isolation, Durabilité)](/08-transactions/01-rappel-acid.md)
